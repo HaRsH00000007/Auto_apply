@@ -302,7 +302,7 @@
   // ---------- Ollama ----------
   function currentModel() {
     var el = document.getElementById('model');
-    return (el && el.value) || 'qwen2.5:7b-instruct';
+    return (el && el.value) || 'qwen2.5:3b';
   }
 
   async function ollamaJSON(system, user, schema) {

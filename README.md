@@ -19,17 +19,18 @@ Inspired by Claude's browser extension, but using your own local models.
 ## Quick start (5 minutes)
 
 ```bash
-# 1. Install Ollama (https://ollama.com/download), then pull the default model
-ollama pull qwen2.5:7b-instruct
+# 1. Install Ollama (https://ollama.com/download), then pull a model that fits your laptop
+#    (see "Which model should I download?" below – qwen2.5:3b works on almost any laptop)
+ollama pull qwen2.5:3b
 
 # 2. Allow the Chrome extension to call Ollama (see "Configure CORS" below), restart Ollama
 
 # 3. Get the code
-git clone https://github.com/BhavyaKohli-code/browserautoapplyagent.git
+git clone https://github.com/HaRsH00000007/Auto_apply.git
 ```
 
 4. Open `chrome://extensions` → turn on **Developer mode** → **Load unpacked** → pick the cloned
-   `browserautoapplyagent` folder (the one that contains `manifest.json`).
+   `Auto_apply` folder (the one that contains `manifest.json`).
 5. Click the extension icon on any normal web page → the side panel opens.
 6. The panel should list your Ollama models. If it says *"Ollama not running at localhost:11434"*,
    see [Troubleshooting](#troubleshooting).
@@ -42,8 +43,44 @@ everything runs against Ollama on `http://localhost:11434`.
 
 - Chrome, Edge, Brave or another Chromium browser (Manifest V3 + Side Panel support)
 - [Ollama](https://ollama.com) installed and running
-- At least one model pulled (default: `qwen2.5:7b-instruct`)
-- ~8 GB RAM for 7B models, ~16 GB for 14B
+- At least one model pulled (default: `qwen2.5:3b`) – see [Which model should I download?](#which-model-should-i-download)
+- 8 GB RAM is enough for the 3B model; 16 GB for 7B; 32 GB (or a GPU with 8 GB+ VRAM) for 14B
+
+## Which model should I download?
+
+The model runs **on your laptop**, so pick it by how much memory you have. A model needs roughly
+its download size in free RAM (or GPU memory), plus room for Chrome and the rest of your apps.
+
+**Check your laptop:**
+- **Windows:** Task Manager → **Performance** → *Memory* shows total RAM; *GPU* shows "Dedicated GPU memory" (VRAM).
+- **macOS:**  → About This Mac → *Memory*. On Apple Silicon (M1–M4) RAM and GPU memory are shared.
+- **Linux:** `free -h` for RAM, `nvidia-smi` for an NVIDIA GPU's VRAM.
+
+| Your laptop | Model to pull | Download | Auto Apply quality | Speed |
+|---|---|---|---|---|
+| 4–6 GB RAM, no GPU (older / budget laptop) | `qwen2.5:1.5b` | ~1 GB | Basic – fine for yes/no and number questions, weaker on free-text answers | Fast |
+| **8 GB RAM**, integrated graphics (most laptops) | **`qwen2.5:3b`** (default) | ~1.9 GB | Good for Auto Apply | Fast |
+| 16 GB RAM, or a GPU with 4–6 GB VRAM (GTX 1650 / RTX 3050), or Apple M1/M2 16 GB | `qwen2.5:7b-instruct` | ~4.7 GB | Better – recommended if it fits | Medium |
+| 32 GB RAM, or a GPU with 8–12 GB VRAM (RTX 3060/4060/4070), or Apple M-series 32 GB | `qwen2.5:14b` | ~9 GB | Best for Auto Apply; usable for the Browser Agent tab | Medium |
+| 64 GB RAM, or a GPU with 24 GB VRAM (RTX 3090/4090), or Apple M-series 64 GB+ | `qwen2.5:32b` | ~20 GB | Best for open-ended Browser Agent tasks | Slower |
+
+```bash
+ollama pull qwen2.5:3b          # pick ONE line from the table
+ollama list                     # confirm it downloaded
+ollama run qwen2.5:3b "hello"   # quick test, then type /bye
+```
+
+Tips:
+- **Auto Apply** only asks the model one short form question at a time, so a small model works.
+  Every answer is saved and reused, so the model is needed less over time. A bigger model mainly
+  helps with free-text questions and the AI job-fit filter.
+- The **Browser Agent** tab (open-ended "do this task" chat) needs a bigger model – 14B or more – to
+  be reliable.
+- If answers come slowly or your laptop freezes, drop one row in the table. If you have spare memory,
+  move up one row.
+- You can install several models and switch between them from the dropdown at the top of the side
+  panel. The panel picks a `qwen` model automatically if one is installed.
+- Without a GPU everything still works – Ollama falls back to the CPU, just slower.
 
 ## Detailed setup
 
@@ -73,15 +110,10 @@ curl http://localhost:11434/api/tags
 
 ### 2. Pull a model
 
+Pick the model for your laptop from [Which model should I download?](#which-model-should-i-download), e.g.:
+
 ```bash
-# Default (good for Auto Apply and simple browsing):
-ollama pull qwen2.5:7b-instruct
-
-# Better for multi-step browsing tasks:
-ollama pull qwen2.5:14b
-
-# Alternative:
-ollama pull llama3.1:8b
+ollama pull qwen2.5:3b
 ```
 
 You can switch models from the dropdown in the side panel.
@@ -94,7 +126,13 @@ Ollama rejects requests from browser extensions unless `OLLAMA_ORIGINS` allows t
 **Windows (PowerShell):**
 ```powershell
 [System.Environment]::SetEnvironmentVariable("OLLAMA_ORIGINS", "chrome-extension://*", "User")
-# Quit Ollama from the system tray and start it again
+# Quit Ollama from the system tray (right-click → Quit) and start it again.
+# The variable is only read when Ollama starts, so the restart is required.
+```
+
+Check it worked (should print `200`, not a 403 error):
+```powershell
+(Invoke-WebRequest -UseBasicParsing http://localhost:11434/api/tags -Headers @{Origin='chrome-extension://test'}).StatusCode
 ```
 
 **macOS (app):**
@@ -131,10 +169,17 @@ After pulling new code (`git pull`), press the **reload** ↻ button on the exte
 
 ### 5. (Auto Apply only) Set your profile
 
-Edit `profile-default.js` with your own details – name, email, phone, city, CTC, notice period,
-links, and paste your resume as plain text into `resumeText` – then reload the extension.
-You can also edit everything later in the **Auto Apply → Profile** section of the panel; values
-saved there override the file.
+`profile-default.js` holds the default profile (currently the repo owner's details). If you are
+setting this up for yourself, replace them with your own – name, email, phone, city, current role,
+education, total years, skills with years, CTC, notice period, links, and your resume as plain text
+in `resumeText` – then reload the extension.
+
+You can also edit everything in the **Auto Apply → Profile** section of the panel. Values saved
+there **override** the file; fields left empty fall back to it. After a run, check the
+**History** section to see exactly what was answered on each application.
+
+Keep these honest and consistent with your resume – total years, skill years and education are
+typed straight into application forms.
 
 ## Usage
 
@@ -258,12 +303,15 @@ General notes:
 
 | Model | Size | Quality | Use case |
 |-------|------|---------|----------|
+| qwen2.5:3b | 1.9GB | Basic | Auto Apply on 8 GB laptops (default) |
 | qwen2.5:7b | 4.7GB | Basic | Simple tasks (search, click) |
 | llama3.1:8b | 4.7GB | Basic | Simple tasks |
 | qwen2.5:14b | 9GB | Better | Multi-step tasks |
 | qwen2.5:32b | 20GB | Good | Complex navigation |
 
-For open-ended browsing tasks bigger models help. Auto Apply works well with `qwen2.5:7b-instruct` because the LLM only answers single form questions.
+See [Which model should I download?](#which-model-should-i-download) for picking by laptop RAM/GPU.
+For open-ended browsing tasks bigger models help. Auto Apply works with `qwen2.5:3b` and up because
+the LLM only answers single form questions.
 
 ## Architecture
 
@@ -292,8 +340,12 @@ For open-ended browsing tasks bigger models help. Auto Apply works well with `qw
 | Problem | Fix |
 |---------|-----|
 | "Ollama not running at localhost:11434" | Start Ollama (`ollama serve` or the tray app) and check `curl http://localhost:11434/api/tags` |
-| Requests fail with **403** | `OLLAMA_ORIGINS` is not set or Ollama wasn't restarted after setting it (step 3) |
-| Model dropdown is empty | Pull a model: `ollama pull qwen2.5:7b-instruct` |
+| Requests fail with **403** / "Ollama not reachable: Ollama HTTP 403" | `OLLAMA_ORIGINS` is not set, or Ollama was not fully quit and restarted after setting it (step 3) |
+| Model dropdown is empty | Pull a model: `ollama pull qwen2.5:3b` |
+| "model not found" | The selected model isn't installed – run `ollama list` and pick one of those in the dropdown |
+| Laptop very slow / freezes while applying | Model too big for your RAM – use a smaller one from the model table |
+| LinkedIn: "Easy Apply dialog did not open" | Keep the LinkedIn tab visible (window not minimized or covered) |
+| Indeed run does nothing | Indeed may be showing a "Verify you are human" page – complete it yourself; make sure you're signed in to Indeed |
 | Side panel doesn't open | Use a normal `http(s)` page, not `chrome://` or the Web Store |
 | Auto Apply stalls | Keep the Chrome window visible (not minimized) and the panel open; check the log in the panel |
 | "started debugging this browser" bar | Expected on Indeed – real mouse clicks are sent via `chrome.debugger` |
@@ -302,7 +354,8 @@ For open-ended browsing tasks bigger models help. Auto Apply works well with `qw
 ## Credits
 
 Based on [Unlucko/ollama-browser-agent](https://github.com/Unlucko/ollama-browser-agent);
-LinkedIn / Indeed Auto Apply added on top.
+LinkedIn / Indeed Auto Apply added on top in
+[BhavyaKohli-code/browserautoapplyagent](https://github.com/BhavyaKohli-code/browserautoapplyagent).
 
 ## License
 

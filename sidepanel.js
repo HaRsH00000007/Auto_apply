@@ -172,6 +172,7 @@ function connectPort() {
   if (myTabId) {
     port.postMessage({ type: 'set_tab', tabId: myTabId });
   }
+  if (modelEl.value) port.postMessage({ type: 'set_model', model: modelEl.value });
   port.onMessage.addListener(function(msg) {
     if (msg.type === 'agent_status') handleAgentStatus(msg);
     if (msg.type === 'chat_response') handleChatResponse(msg);
@@ -290,6 +291,7 @@ async function init() {
                     models.find(function(m) { return m.indexOf('llama') >= 0; }) ||
                     models[0];
     if (preferred) modelEl.value = preferred;
+    if (preferred && port) port.postMessage({ type: 'set_model', model: preferred });
   } catch (e) {
     dotEl.className = 'dot';
     addMsg('Ollama not running at localhost:11434', 'system');
